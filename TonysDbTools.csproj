@@ -5,7 +5,17 @@
         <TargetFramework>net10.0-windows</TargetFramework>
         <Nullable>enable</Nullable>
         <UseWPF>true</UseWPF>
+        <ApplicationIcon>Doc\Icono.ico</ApplicationIcon>
     </PropertyGroup>
+
+    <ItemGroup>
+      <Compile Remove="Ejemplos\**" />
+      <None Include="Ejemplos\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Include="Doc\Icono.ico" />
+    </ItemGroup>
 
     <ItemGroup>
       <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
