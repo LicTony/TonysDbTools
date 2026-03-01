@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
-        Title="Tony's DB Tools"
+        Title="Tony's DB Tools 1.0.0"
         Width="1100"
         Height="680"
         MinWidth="800"
