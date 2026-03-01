@@ -1,11 +1,13 @@
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Data.SqlClient;
 using TonysDbTools.Models;
+using TonysDbTools.Services;
 
 namespace TonysDbTools.ViewModels.Pages;
 
@@ -19,11 +21,12 @@ public partial class ConexionesViewModel : ViewModelBase
     [ObservableProperty]
     private string _descripcion = "Administre las conexiones a sus bases de datos SQL Server.";
 
-    [ObservableProperty]
-    private ObservableCollection<Conexion> _conexiones = new();
-
-    [ObservableProperty]
-    private Conexion? _conexionSeleccionada;
+    public ObservableCollection<Conexion> Conexiones => SessionService.Instance.Conexiones;
+    public Conexion? ConexionSeleccionada
+    {
+        get => SessionService.Instance.SelectedConexion;
+        set => SessionService.Instance.SelectedConexion = value;
+    }
 
     // Campos del formulario
     [ObservableProperty] private int _id;
@@ -42,14 +45,25 @@ public partial class ConexionesViewModel : ViewModelBase
 
     public ConexionesViewModel()
     {
-        CargarConexionesCommand.Execute(null);
+        SessionService.Instance.PropertyChanged += OnSessionServicePropertyChanged;
+    }
+
+    private void OnSessionServicePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SessionService.SelectedConexion))
+        {
+            OnPropertyChanged(nameof(ConexionSeleccionada));
+        }
+        else if (e.PropertyName == nameof(SessionService.Conexiones))
+        {
+            OnPropertyChanged(nameof(Conexiones));
+        }
     }
 
     [RelayCommand]
     private async Task CargarConexiones()
     {
-        var list = await _service.GetAllAsync();
-        Conexiones = new ObservableCollection<Conexion>(list);
+        await SessionService.Instance.RefreshConexionesAsync();
     }
 
     [RelayCommand]
@@ -67,7 +81,7 @@ public partial class ConexionesViewModel : ViewModelBase
             await _service.AddAsync(conexion);
 
         LimpiarFormulario();
-        await CargarConexiones();
+        await SessionService.Instance.RefreshConexionesAsync();
         StatusMessage = "Conexión guardada correctamente.";
     }
 
@@ -106,7 +120,7 @@ public partial class ConexionesViewModel : ViewModelBase
     {
         if (conexion == null) return;
         await _service.DeleteAsync(conexion.Id);
-        await CargarConexiones();
+        await SessionService.Instance.RefreshConexionesAsync();
         StatusMessage = "Conexión eliminada.";
     }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,18 +8,21 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Data.SqlClient;
 using TonysDbTools.Models;
+using TonysDbTools.Services;
 
 namespace TonysDbTools.ViewModels.Pages;
 
 public partial class BuscarNumeroViewModel : ViewModelBase
 {
-    private readonly ConexionService _conexionService = new();
-
     [ObservableProperty] private string _titulo = "Buscar número";
     [ObservableProperty] private string _descripcion = "Busque valores numéricos en los datos de sus tablas.";
 
-    [ObservableProperty] private ObservableCollection<Conexion> _conexiones = new();
-    [ObservableProperty] private Conexion? _conexionSeleccionada;
+    public ObservableCollection<Conexion> Conexiones => SessionService.Instance.Conexiones;
+    public Conexion? ConexionSeleccionada
+    {
+        get => SessionService.Instance.SelectedConexion;
+        set => SessionService.Instance.SelectedConexion = value;
+    }
 
     [ObservableProperty] private decimal? _valorBuscar;
     [ObservableProperty] private int _topValoresPorTabla = 5;
@@ -30,16 +34,20 @@ public partial class BuscarNumeroViewModel : ViewModelBase
 
     public BuscarNumeroViewModel()
     {
-        CargarConexionesCommand.Execute(null);
+        SessionService.Instance.PropertyChanged += OnSessionServicePropertyChanged;
     }
 
-    [RelayCommand]
-    private async Task CargarConexiones()
+    private void OnSessionServicePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        var list = await _conexionService.GetAllAsync();
-        Conexiones = new ObservableCollection<Conexion>(list);
-        if (Conexiones.Any())
-            ConexionSeleccionada = Conexiones.First();
+        if (e.PropertyName == nameof(SessionService.SelectedConexion))
+        {
+            OnPropertyChanged(nameof(ConexionSeleccionada));
+            BuscarCommand.NotifyCanExecuteChanged();
+        }
+        else if (e.PropertyName == nameof(SessionService.Conexiones))
+        {
+            OnPropertyChanged(nameof(Conexiones));
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanBuscar))]
@@ -148,6 +156,5 @@ DEALLOCATE table_cursor;";
     }
 
     partial void OnValorBuscarChanged(decimal? value) => BuscarCommand.NotifyCanExecuteChanged();
-    partial void OnConexionSeleccionadaChanged(Conexion? value) => BuscarCommand.NotifyCanExecuteChanged();
     partial void OnIsSearchingChanged(bool value) => BuscarCommand.NotifyCanExecuteChanged();
 }

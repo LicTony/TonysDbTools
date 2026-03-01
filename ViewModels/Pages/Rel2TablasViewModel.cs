@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -13,14 +14,17 @@ namespace TonysDbTools.ViewModels.Pages;
 
 public partial class Rel2TablasViewModel : ViewModelBase
 {
-    private readonly ConexionService _conexionService = new();
     private IJoinFinderService? _joinFinderService;
 
     [ObservableProperty] private string _titulo = "Rel. 2 tablas";
     [ObservableProperty] private string _descripcion = "Analyse relaciones entre dos tablas de base de datos.";
 
-    [ObservableProperty] private ObservableCollection<Conexion> _conexiones = new();
-    [ObservableProperty] private Conexion? _conexionSeleccionada;
+    public ObservableCollection<Conexion> Conexiones => SessionService.Instance.Conexiones;
+    public Conexion? ConexionSeleccionada
+    {
+        get => SessionService.Instance.SelectedConexion;
+        set => SessionService.Instance.SelectedConexion = value;
+    }
 
     [ObservableProperty] private string _tabla1 = string.Empty;
     [ObservableProperty] private string _tabla2 = string.Empty;
@@ -36,19 +40,27 @@ public partial class Rel2TablasViewModel : ViewModelBase
 
     public Rel2TablasViewModel()
     {
-        CargarConexionesCommand.Execute(null);
+        SessionService.Instance.PropertyChanged += OnSessionServicePropertyChanged;
+        if (ConexionSeleccionada != null)
+        {
+            ActualizarServicioJoin(ConexionSeleccionada);
+        }
     }
 
-    [RelayCommand]
-    private async Task CargarConexiones()
+    private void OnSessionServicePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        var list = await _conexionService.GetAllAsync();
-        Conexiones = new ObservableCollection<Conexion>(list);
-        if (Conexiones.Any())
-            ConexionSeleccionada = Conexiones.First();
+        if (e.PropertyName == nameof(SessionService.SelectedConexion))
+        {
+            OnPropertyChanged(nameof(ConexionSeleccionada));
+            ActualizarServicioJoin(ConexionSeleccionada);
+        }
+        else if (e.PropertyName == nameof(SessionService.Conexiones))
+        {
+            OnPropertyChanged(nameof(Conexiones));
+        }
     }
 
-    partial void OnConexionSeleccionadaChanged(Conexion? value)
+    private void ActualizarServicioJoin(Conexion? value)
     {
         _joinFinderService?.Dispose();
         _joinFinderService = null;

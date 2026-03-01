@@ -40,14 +40,6 @@
                 CornerRadius="8">
             <StackPanel>
                 <WrapPanel VerticalAlignment="Bottom">
-                    <StackPanel Width="220" Margin="0,0,12,8">
-                        <TextBlock Margin="0,0,0,4" Text="Conexión SQL Server" />
-                        <ComboBox HorizontalAlignment="Stretch"
-                                  DisplayMemberPath="Detalle"
-                                  ItemsSource="{Binding Conexiones}"
-                                  SelectedItem="{Binding ConexionSeleccionada}" />
-                    </StackPanel>
-
                     <StackPanel Width="250" Margin="0,0,12,8">
                         <TextBlock Margin="0,0,0,4" Text="Texto a buscar" />
                         <TextBox Text="{Binding TextoBuscar, UpdateSourceTrigger=PropertyChanged}" />

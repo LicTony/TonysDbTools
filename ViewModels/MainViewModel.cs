@@ -1,7 +1,10 @@
 ﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
+using TonysDbTools.Models;
+using TonysDbTools.Services;
 
 namespace TonysDbTools.ViewModels;
 
@@ -13,6 +16,13 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private ObservableCollection<string> _searchSuggestions = new();
 
+    public ObservableCollection<Conexion> Conexiones => SessionService.Instance.Conexiones;
+    public Conexion? ConexionSeleccionada
+    {
+        get => SessionService.Instance.SelectedConexion;
+        set => SessionService.Instance.SelectedConexion = value;
+    }
+
     private readonly List<MenuItemInfo> _menuItems = new()
     {
         new("Conexiones", "Conexiones"),
@@ -23,6 +33,23 @@ public partial class MainViewModel : ViewModelBase
         new("Buscar número", "BuscarNumero"),
         new("Acerca de", "AcercaDe")
     };
+
+    public MainViewModel()
+    {
+        SessionService.Instance.PropertyChanged += OnSessionServicePropertyChanged;
+    }
+
+    private void OnSessionServicePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SessionService.SelectedConexion))
+        {
+            OnPropertyChanged(nameof(ConexionSeleccionada));
+        }
+        else if (e.PropertyName == nameof(SessionService.Conexiones))
+        {
+            OnPropertyChanged(nameof(Conexiones));
+        }
+    }
 
     partial void OnSearchTextChanged(string value)
     {
