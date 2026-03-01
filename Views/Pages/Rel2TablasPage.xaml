@@ -71,6 +71,10 @@
                               SpinButtonPlacementMode="Inline" />
             </StackPanel>
 
+            <CheckBox Margin="0,18,12,0" 
+                      Content="Campo implícito" 
+                      IsChecked="{Binding IncluirCamposImplicitos}" />
+
             <Button Margin="0,18,0,0"
                     Padding="16,6"
                     Command="{Binding BuscarRelacionesCommand}"

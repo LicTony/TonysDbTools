@@ -37,6 +37,7 @@ public partial class Rel3TablasViewModel : ViewModelBase
 
     [ObservableProperty] private JoinResult? _resultado;
     [ObservableProperty] private int _maxDepth = 3; // Menor profundidad por defecto para 3 tablas por performance
+    [ObservableProperty] private bool _incluirCamposImplicitos;
     [ObservableProperty] private bool _isSearching;
     [ObservableProperty] private string _statusMessage = string.Empty;
 
@@ -155,44 +156,51 @@ public partial class Rel3TablasViewModel : ViewModelBase
             var tableNames = new[] { Tabla1, Tabla2, Tabla3 };
             var result = await _joinFinderService.FindJoinPathsAsync(tableNames, MaxDepth);
             
-            // Buscar JOINS implícitos (por nombre de columna)
-            var implicitJoins = await _joinFinderService.FindImplicitJoinsAsync(tableNames);
-            
-            foreach (var rel in implicitJoins)
+            if (IncluirCamposImplicitos)
             {
-                var path = new JoinPath
-                {
-                    Steps = new List<JoinStep>
-                    {
-                        new JoinStep
-                        {
-                            ConstraintName = rel.ConstraintName,
-                            FromTable = rel.FromFullName,
-                            FromColumn = rel.FromColumn,
-                            ToTable = rel.ToFullName,
-                            ToColumn = rel.ToColumn
-                        }
-                    }
-                };
+                // Buscar JOINS implícitos (por nombre de columna)
+                var implicitJoins = await _joinFinderService.FindImplicitJoinsAsync(tableNames);
                 
-                if (!result.Paths.Any(p => p.Steps.Count == 1 && 
-                    p.Steps[0].FromTable == path.Steps[0].FromTable && 
-                    p.Steps[0].ToTable == path.Steps[0].ToTable &&
-                    p.Steps[0].FromColumn == path.Steps[0].FromColumn &&
-                    p.Steps[0].ToColumn == path.Steps[0].ToColumn))
+                foreach (var rel in implicitJoins)
                 {
-                    result.Paths.Add(path);
+                    var path = new JoinPath
+                    {
+                        Steps = new List<JoinStep>
+                        {
+                            new JoinStep
+                            {
+                                ConstraintName = rel.ConstraintName,
+                                FromTable = rel.FromFullName,
+                                FromColumn = rel.FromColumn,
+                                ToTable = rel.ToFullName,
+                                ToColumn = rel.ToColumn
+                            }
+                        }
+                    };
+                    
+                    if (!result.Paths.Any(p => p.Steps.Count == 1 && 
+                        p.Steps[0].FromTable == path.Steps[0].FromTable && 
+                        p.Steps[0].ToTable == path.Steps[0].ToTable &&
+                        p.Steps[0].FromColumn == path.Steps[0].FromColumn &&
+                        p.Steps[0].ToColumn == path.Steps[0].ToColumn))
+                    {
+                        result.Paths.Add(path);
+                    }
                 }
             }
 
             Resultado = result;
             
             if (Resultado.CanJoin)
-                StatusMessage = $"Se encontraron {Resultado.TotalPaths} combinaciones que conectan las tablas.";
+                StatusMessage = IncluirCamposImplicitos
+                    ? $"Se encontraron {Resultado.TotalPaths} combinaciones que conectan las tablas (incluyendo implícitos)."
+                    : $"Se encontraron {Resultado.TotalPaths} combinaciones que conectan las tablas.";
             else if (Resultado.Errors.Any())
                 StatusMessage = $"Error: {Resultado.Errors.First()}";
             else
-                StatusMessage = "No se encontraron relaciones que conecten las 3 tablas simultáneamente.";
+                StatusMessage = IncluirCamposImplicitos
+                    ? "No se encontraron relaciones que conecten las 3 tablas simultáneamente (incluyendo implícitas)."
+                    : "No se encontraron relaciones que conecten las 3 tablas simultáneamente.";
         }
         catch (Exception ex)
         {
