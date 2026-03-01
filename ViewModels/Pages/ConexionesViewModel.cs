@@ -1,12 +1,156 @@
+using System;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.Data.SqlClient;
+using TonysDbTools.Models;
 
 namespace TonysDbTools.ViewModels.Pages;
 
 public partial class ConexionesViewModel : ViewModelBase
 {
+    private readonly ConexionService _service = new();
+
     [ObservableProperty]
     private string _titulo = "Conexiones";
 
     [ObservableProperty]
     private string _descripcion = "Administre las conexiones a sus bases de datos SQL Server.";
+
+    [ObservableProperty]
+    private ObservableCollection<Conexion> _conexiones = new();
+
+    [ObservableProperty]
+    private Conexion? _conexionSeleccionada;
+
+    // Campos del formulario
+    [ObservableProperty] private int _id;
+    [ObservableProperty] private string _detalle = string.Empty;
+    [ObservableProperty] private TipoConexion _tipoSeleccionado = TipoConexion.UserPass;
+    [ObservableProperty] private string _server = string.Empty;
+    [ObservableProperty] private string _baseDeDatos = string.Empty;
+    [ObservableProperty] private string _usuario = string.Empty;
+    [ObservableProperty] private string _password = string.Empty;
+    [ObservableProperty] private string _connectionString = string.Empty;
+
+    [ObservableProperty] private bool _isEditing;
+    [ObservableProperty] private string _statusMessage = string.Empty;
+
+    public Array TiposConexion => Enum.GetValues(typeof(TipoConexion));
+
+    public ConexionesViewModel()
+    {
+        CargarConexionesCommand.Execute(null);
+    }
+
+    [RelayCommand]
+    private async Task CargarConexiones()
+    {
+        var list = await _service.GetAllAsync();
+        Conexiones = new ObservableCollection<Conexion>(list);
+    }
+
+    [RelayCommand]
+    private async Task GuardarConexion()
+    {
+        if (string.IsNullOrWhiteSpace(Detalle)) return;
+
+        Conexion conexion = CrearConexionDesdeCampos();
+        conexion.Id = Id;
+        conexion.Detalle = Detalle;
+
+        if (IsEditing)
+            await _service.UpdateAsync(conexion);
+        else
+            await _service.AddAsync(conexion);
+
+        LimpiarFormulario();
+        await CargarConexiones();
+        StatusMessage = "Conexión guardada correctamente.";
+    }
+
+    [RelayCommand]
+    private async Task ProbarConexion()
+    {
+        StatusMessage = "Probando conexión...";
+        try
+        {
+            var temp = CrearConexionDesdeCampos();
+            var connStr = temp.GetConnectionString();
+
+            using var conn = new SqlConnection(connStr);
+            await conn.OpenAsync();
+            StatusMessage = "¡Conexión exitosa!";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private Conexion CrearConexionDesdeCampos()
+    {
+        return TipoSeleccionado switch
+        {
+            TipoConexion.UserPass => new ConexionUserPass { Server = Server, BaseDeDatos = BaseDeDatos, Usuario = Usuario, Password = Password },
+            TipoConexion.IntegratedSecurity => new ConexionIntegratedSecurity { Server = Server, BaseDeDatos = BaseDeDatos },
+            TipoConexion.ConnectionString => new ConexionConnectionString { ConnectionString = ConnectionString },
+            _ => throw new ArgumentOutOfRangeException()
+        };
+    }
+
+    [RelayCommand]
+    private async Task EliminarConexion(Conexion? conexion)
+    {
+        if (conexion == null) return;
+        await _service.DeleteAsync(conexion.Id);
+        await CargarConexiones();
+        StatusMessage = "Conexión eliminada.";
+    }
+
+    [RelayCommand]
+    private void EditarConexion(Conexion? conexion)
+    {
+        if (conexion == null) return;
+
+        IsEditing = true;
+        Id = conexion.Id;
+        Detalle = conexion.Detalle;
+        TipoSeleccionado = conexion.Tipo;
+
+        if (conexion is ConexionUserPass up)
+        {
+            Server = up.Server;
+            BaseDeDatos = up.BaseDeDatos;
+            Usuario = up.Usuario;
+            Password = up.Password;
+        }
+        else if (conexion is ConexionIntegratedSecurity isec)
+        {
+            Server = isec.Server;
+            BaseDeDatos = isec.BaseDeDatos;
+        }
+        else if (conexion is ConexionConnectionString cs)
+        {
+            ConnectionString = cs.ConnectionString;
+        }
+        StatusMessage = $"Editando: {Detalle}";
+    }
+
+    [RelayCommand]
+    private void LimpiarFormulario()
+    {
+        IsEditing = false;
+        Id = 0;
+        Detalle = string.Empty;
+        Server = string.Empty;
+        BaseDeDatos = string.Empty;
+        Usuario = string.Empty;
+        Password = string.Empty;
+        ConnectionString = string.Empty;
+        TipoSeleccionado = TipoConexion.UserPass;
+        StatusMessage = string.Empty;
+    }
 }

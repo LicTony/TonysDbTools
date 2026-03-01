@@ -10,6 +10,7 @@
     <ItemGroup>
       <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
       <PackageReference Include="iNKORE.UI.WPF.Modern" Version="0.10.2.1" />
+      <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.4" />
     </ItemGroup>
 
 </Project>

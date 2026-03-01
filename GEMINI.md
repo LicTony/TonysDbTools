@@ -39,7 +39,28 @@ As a standard .NET 10 project, use the following commands:
 - `todo.md`: Pending tasks and features to implement.
 
 ## Pending Tasks
-See [`todo.md`](todo.md) for the full list. Current main task:
+See [`todo.md`](todo.md) for the full list.
 
-- Implementar pantalla moderna con **iNKORE.UI.WPF.Modern** (`NavigationView` con 7 ítems + `AutoSuggestBox`) al estilo Windows 11/Fluent, combinando con **CommunityToolkit.Mvvm**.
-  - Menú: Conexiones, Rel. 2 tablas, Rel. 3 tablas, Buscar en SPs, Buscar texto, Buscar número, Acerca de.
+## Lessons Learned & Best Practices (iNKORE.UI.WPF.Modern)
+Para evitar errores de compilación y visualización en este proyecto, seguir estas reglas:
+
+### 1. Namespaces y URIs
+- Usar siempre `http://schemas.inkore.net/lib/ui/wpf/modern` con el prefijo `ui:`. (El protocolo `https` suele fallar en el compilador XAML).
+
+### 2. Declaración de Ventana
+- No usar la etiqueta `<ui:ModernWindow>`.
+- Usar la etiqueta estándar de WPF `<Window>` y aplicar el estilo moderno mediante propiedades adjuntas:
+  ```xml
+  ui:WindowHelper.UseModernWindowStyle="True"
+  ui:WindowHelper.SystemBackdropType="Mica"
+  ui:TitleBar.ExtendViewIntoTitleBar="True"
+  ```
+
+### 3. Uso de Controles
+- **Controles Estándar (Sin prefijo):** `Button`, `TextBox`, `ComboBox`, `PasswordBox`, `DataGrid`, `CheckBox`, `TextBlock`, `Frame`, `Border`. La librería los estiliza automáticamente.
+- **Controles Especiales (Con prefijo `ui:`):** `NavigationView`, `FontIcon`, `AutoSuggestBox`, `SimpleStackPanel`, `WindowHelper`.
+
+### 4. Colores y Recursos
+- **Color de Acento:** Usar `{ui:ThemeResource SystemControlHighlightAccentBrush}` para propiedades de tipo `Brush` (como `Foreground` o `Background`). Evitar `SystemAccentColor` ya que es de tipo `Color` y causa errores de conversión.
+- **Estilos:** Si un estilo como `TitleTextBlockStyle` falla con `StaticResource`, verificar si existe en el diccionario global o simplemente omitirlo y usar propiedades locales (`FontSize`, `FontWeight`).
+
