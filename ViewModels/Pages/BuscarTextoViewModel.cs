@@ -24,7 +24,7 @@ public partial class BuscarTextoViewModel : ViewModelBase
     [ObservableProperty] private bool _isBusquedaExacta = false;
     [ObservableProperty] private int _topValoresPorTabla = 2;
 
-    [ObservableProperty] private ObservableCollection<TextSearchResult> _resultados = new();
+    [ObservableProperty] private ObservableCollection<DbSearchResult> _resultados = new();
     [ObservableProperty] private string _statusMessage = string.Empty;
     [ObservableProperty] private string _resultCountMessage = string.Empty;
     [ObservableProperty] private bool _isSearching;
@@ -115,7 +115,7 @@ DEALLOCATE table_cursor;";
             {
                 while (await reader.ReadAsync())
                 {
-                    Resultados.Add(new TextSearchResult
+                    Resultados.Add(new DbSearchResult
                     {
                         Tabla = reader["Tabla"].ToString() ?? "",
                         Columna = reader["Columna"].ToString() ?? "",

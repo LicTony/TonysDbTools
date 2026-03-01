@@ -1,13 +1,22 @@
 <UserControl x:Class="TonysDbTools.Views.Pages.BuscarNumeroPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern">
+             xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewmodels="clr-namespace:TonysDbTools.ViewModels.Pages"
+             mc:Ignorable="d" d:DesignHeight="600" d:DesignWidth="900"
+             d:DataContext="{d:DesignInstance Type=viewmodels:BuscarNumeroViewModel}">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <StackPanel Grid.Row="0" Margin="32,28,32,16">
+
+        <!--  Encabezado  -->
+        <StackPanel Grid.Row="0" Margin="32,24,32,16">
             <StackPanel Orientation="Horizontal">
                 <ui:FontIcon FontSize="28"
                              Foreground="{ui:ThemeResource SystemControlHighlightAccentBrush}"
@@ -16,22 +25,103 @@
                            VerticalAlignment="Center"
                            FontSize="24"
                            FontWeight="SemiBold"
-                           
                            Text="{Binding Titulo}" />
             </StackPanel>
             <TextBlock Margin="0,8,0,0"
                        Opacity="0.65"
                        Text="{Binding Descripcion}" />
         </StackPanel>
+
+        <!--  Filtros de Búsqueda  -->
         <Border Grid.Row="1"
-                Margin="32,0,32,32"
-                Padding="24"
-                CornerRadius="8"
-                >
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Opacity="0.5">
-                <ui:FontIcon FontSize="48" Glyph="&#xE8EF;" />
-                <TextBlock Margin="0,12,0,0" HorizontalAlignment="Center" Text="En desarrollo..." />
+                Margin="32,0,32,16"
+                Padding="20"
+                Background="{ui:ThemeResource SystemControlBackgroundAltHighBrush}"
+                CornerRadius="8">
+            <StackPanel>
+                <WrapPanel VerticalAlignment="Bottom">
+                    <StackPanel Width="220" Margin="0,0,12,8">
+                        <TextBlock Margin="0,0,0,4" Text="Conexión SQL Server" />
+                        <ComboBox HorizontalAlignment="Stretch"
+                                  DisplayMemberPath="Detalle"
+                                  ItemsSource="{Binding Conexiones}"
+                                  SelectedItem="{Binding ConexionSeleccionada}" />
+                    </StackPanel>
+
+                    <StackPanel Width="200" Margin="0,0,12,8">
+                        <TextBlock Margin="0,0,0,4" Text="Número a buscar" />
+                        <ui:NumberBox Value="{Binding ValorBuscar, Mode=TwoWay}" 
+                                      PlaceholderText="Ingrese un número"
+                                      SpinButtonPlacementMode="Hidden" />
+                    </StackPanel>
+
+                    <StackPanel Margin="0,0,12,8">
+                        <TextBlock Margin="0,0,0,4" Text="Top por tabla" />
+                        <ui:NumberBox Width="80" 
+                                      Value="{Binding TopValoresPorTabla, Mode=TwoWay}" 
+                                      Minimum="1" 
+                                      Maximum="1000" 
+                                      SpinButtonPlacementMode="Inline" />
+                    </StackPanel>
+
+                    <StackPanel Margin="0,0,0,8" VerticalAlignment="Bottom">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Width="100"
+                                    Command="{Binding BuscarCommand}"
+                                    Content="Buscar" 
+                                    Style="{ui:StaticResource AccentButtonStyle}"/>
+                            <Button Margin="8,0,0,0"
+                                    Command="{Binding LimpiarCommand}"
+                                    Content="Limpiar" />
+                        </StackPanel>
+                    </StackPanel>
+                </WrapPanel>
+
+                <TextBlock Margin="0,8,0,0"
+                           FontStyle="Italic"
+                           Opacity="0.8"
+                           Text="{Binding StatusMessage}" />
             </StackPanel>
         </Border>
+
+        <!--  Resultados  -->
+        <Border Grid.Row="2"
+                Margin="32,0,32,8"
+                Background="{ui:ThemeResource SystemControlBackgroundAltHighBrush}"
+                CornerRadius="8">
+            <Grid>
+                <DataGrid AutoGenerateColumns="False"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          CanUserAddRows="False"
+                          HeadersVisibility="Column"
+                          ItemsSource="{Binding Resultados}"
+                          IsReadOnly="True">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Width="Auto"
+                                            Binding="{Binding Tabla}"
+                                            Header="Tabla" />
+                        <DataGridTextColumn Width="Auto"
+                                            Binding="{Binding Columna}"
+                                            Header="Columna" />
+                        <DataGridTextColumn Width="*"
+                                            Binding="{Binding Valor}"
+                                            Header="Valor encontrado" />
+                    </DataGrid.Columns>
+                </DataGrid>
+                
+                <!--  Indicador de carga  -->
+                <ui:ProgressRing IsActive="{Binding IsSearching}" 
+                                Width="48" Height="48"
+                                VerticalAlignment="Center" HorizontalAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <!--  Footer / Resultados encontrados  -->
+        <TextBlock Grid.Row="3"
+                   Margin="32,0,32,16"
+                   FontWeight="SemiBold"
+                   Opacity="0.7"
+                   Text="{Binding ResultCountMessage}" />
     </Grid>
 </UserControl>
