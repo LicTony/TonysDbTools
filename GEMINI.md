@@ -17,7 +17,7 @@ The project follows a standard MVVM structure:
 - **App.xaml / App.xaml.cs**: Application entry point and initialization logic.
 
 ## Building and Running
-As a standard .NET 8 project, use the following commands:
+As a standard .NET 10 project, use the following commands:
 
 - **Restore dependencies:** `dotnet restore`
 - **Build the project:** `dotnet build`
@@ -36,3 +36,10 @@ As a standard .NET 8 project, use the following commands:
 - `Views/MainView.xaml`: Main UI layout.
 - `ViewModels/MainViewModel.cs`: Core UI logic and properties.
 - `App.xaml.cs`: Entry point where the main window is created and shown.
+- `todo.md`: Pending tasks and features to implement.
+
+## Pending Tasks
+See [`todo.md`](todo.md) for the full list. Current main task:
+
+- Implementar pantalla moderna con **iNKORE.UI.WPF.Modern** (`NavigationView` con 7 ítems + `AutoSuggestBox`) al estilo Windows 11/Fluent, combinando con **CommunityToolkit.Mvvm**.
+  - Menú: Conexiones, Rel. 2 tablas, Rel. 3 tablas, Buscar en SPs, Buscar texto, Buscar número, Acerca de.

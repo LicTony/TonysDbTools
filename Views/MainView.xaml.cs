@@ -1,26 +1,8 @@
-﻿// MIT License
-// 
-// Copyright (c) 2023 Russell Camo
-// 
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-// 
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
+using System.Linq;
 using System.Windows;
+using iNKORE.UI.WPF.Modern.Controls;
+using TonysDbTools.ViewModels;
+using TonysDbTools.Views.Pages;
 
 namespace TonysDbTools.Views;
 
@@ -29,5 +11,49 @@ public partial class MainView : Window
     public MainView()
     {
         InitializeComponent();
+        // Seleccionar el primer ítem por defecto al cargar
+        Loaded += (_, _) => NavigateToTag("Conexiones");
+    }
+
+    private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+    {
+        if (args.SelectedItem is NavigationViewItem item)
+        {
+            NavigateToTag(item.Tag?.ToString());
+        }
+    }
+
+    private void AutoSuggestBox_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
+    {
+        if (DataContext is MainViewModel vm && args.SelectedItem is string name)
+        {
+            var tag = vm.GetTagFromName(name);
+            NavigateToTag(tag);
+            
+            // Buscar el item en la NavigationView y seleccionarlo visualmente
+            var menuItem = NavView.MenuItems.OfType<NavigationViewItem>().FirstOrDefault(i => i.Tag?.ToString() == tag)
+                        ?? NavView.FooterMenuItems.OfType<NavigationViewItem>().FirstOrDefault(i => i.Tag?.ToString() == tag);
+            
+            if (menuItem != null)
+                NavView.SelectedItem = menuItem;
+        }
+    }
+
+    private void NavigateToTag(string? tag)
+    {
+        object? page = tag switch
+        {
+            "Conexiones"   => new ConexionesPage(),
+            "Rel2Tablas"   => new Rel2TablasPage(),
+            "Rel3Tablas"   => new Rel3TablasPage(),
+            "BuscarSPs"    => new BuscarEnSPsPage(),
+            "BuscarTexto"  => new BuscarTextoPage(),
+            "BuscarNumero" => new BuscarNumeroPage(),
+            "AcercaDe"     => new AcercaDePage(),
+            _              => null
+        };
+
+        if (page is not null)
+            ContentFrame.Navigate(page);
     }
 }

@@ -1,15 +1,118 @@
-﻿<Window x:Class="TonysDbTools.Views.MainView"
+<Window x:Class="TonysDbTools.Views.MainView"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        Title="MainView"
-        Width="800"
-        Height="450"
+        xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
+        Title="Tony's DB Tools"
+        Width="1100"
+        Height="680"
+        MinWidth="800"
+        MinHeight="550"
         WindowStartupLocation="CenterScreen"
-        WindowState="Maximized"
-        mc:Ignorable="d">
-    <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
-        <TextBlock Text="{Binding WelcomeMessage}" />
-    </Grid>
+        mc:Ignorable="d"
+        
+        ui:WindowHelper.UseModernWindowStyle="True"
+        ui:WindowHelper.SystemBackdropType="Mica"
+        ui:TitleBar.ExtendViewIntoTitleBar="True">
+
+    <ui:NavigationView x:Name="NavView"
+                       IsBackButtonVisible="Collapsed"
+                       IsSettingsVisible="False"
+                       PaneDisplayMode="Left"
+                       SelectionChanged="NavView_SelectionChanged">
+
+        <!--  AutoSuggestBox en la parte superior del panel de navegación  -->
+        <ui:NavigationView.AutoSuggestBox>
+            <ui:AutoSuggestBox PlaceholderText="Buscar menú..."
+                               QueryIcon="Find"
+                               Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                               ItemsSource="{Binding SearchSuggestions}"
+                               SuggestionChosen="AutoSuggestBox_SuggestionChosen" />
+        </ui:NavigationView.AutoSuggestBox>
+
+        <!--  Encabezado del panel (logo / título)  -->
+        <ui:NavigationView.PaneHeader>
+            <StackPanel Margin="8,8,8,4" Orientation="Horizontal">
+                <ui:FontIcon FontSize="20" Glyph="&#xE7CF;" />
+                <TextBlock Margin="8,0,0,0"
+                           VerticalAlignment="Center"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           Text="DB Tools" />
+            </StackPanel>
+        </ui:NavigationView.PaneHeader>
+
+        <!--  Ítems principales del menú  -->
+        <ui:NavigationView.MenuItems>
+
+            <ui:NavigationViewItem x:Name="NavConexiones"
+                                   Content="Conexiones"
+                                   Tag="Conexiones">
+                <ui:NavigationViewItem.Icon>
+                    <ui:FontIcon Glyph="&#xE968;" />
+                </ui:NavigationViewItem.Icon>
+            </ui:NavigationViewItem>
+
+            <ui:NavigationViewItem x:Name="NavRel2Tablas"
+                                   Content="Rel. 2 tablas"
+                                   Tag="Rel2Tablas">
+                <ui:NavigationViewItem.Icon>
+                    <ui:FontIcon Glyph="&#xE71D;" />
+                </ui:NavigationViewItem.Icon>
+            </ui:NavigationViewItem>
+
+            <ui:NavigationViewItem x:Name="NavRel3Tablas"
+                                   Content="Rel. 3 tablas"
+                                   Tag="Rel3Tablas">
+                <ui:NavigationViewItem.Icon>
+                    <ui:FontIcon Glyph="&#xE71C;" />
+                </ui:NavigationViewItem.Icon>
+            </ui:NavigationViewItem>
+
+            <ui:NavigationViewItemSeparator />
+
+            <ui:NavigationViewItem x:Name="NavBuscarSPs"
+                                   Content="Buscar en SPs"
+                                   Tag="BuscarSPs">
+                <ui:NavigationViewItem.Icon>
+                    <ui:FontIcon Glyph="&#xE943;" />
+                </ui:NavigationViewItem.Icon>
+            </ui:NavigationViewItem>
+
+            <ui:NavigationViewItem x:Name="NavBuscarTexto"
+                                   Content="Buscar texto"
+                                   Tag="BuscarTexto">
+                <ui:NavigationViewItem.Icon>
+                    <ui:FontIcon Glyph="&#xF78B;" />
+                </ui:NavigationViewItem.Icon>
+            </ui:NavigationViewItem>
+
+            <ui:NavigationViewItem x:Name="NavBuscarNumero"
+                                   Content="Buscar número"
+                                   Tag="BuscarNumero">
+                <ui:NavigationViewItem.Icon>
+                    <ui:FontIcon Glyph="&#xE8EF;" />
+                </ui:NavigationViewItem.Icon>
+            </ui:NavigationViewItem>
+
+        </ui:NavigationView.MenuItems>
+
+        <!--  Ítem "Acerca de" al pie del panel  -->
+        <ui:NavigationView.FooterMenuItems>
+            <ui:NavigationViewItem x:Name="NavAcercaDe"
+                                   Content="Acerca de"
+                                   Tag="AcercaDe">
+                <ui:NavigationViewItem.Icon>
+                    <ui:FontIcon Glyph="&#xE946;" />
+                </ui:NavigationViewItem.Icon>
+            </ui:NavigationViewItem>
+        </ui:NavigationView.FooterMenuItems>
+
+        <!--  Área de contenido: Frame para cargar las páginas  -->
+        <Frame x:Name="ContentFrame"
+               NavigationUIVisibility="Hidden" />
+
+    </ui:NavigationView>
+
 </Window>
