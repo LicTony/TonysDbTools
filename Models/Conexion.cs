@@ -39,8 +39,17 @@ public class ConexionUserPass : Conexion
 
     public ConexionUserPass() => Tipo = TipoConexion.UserPass;
 
-    public override string GetConnectionString() => 
-        $"Server={Server};Database={BaseDeDatos};User Id={Usuario};Password={Password};TrustServerCertificate=True;";
+    public override string GetConnectionString()
+    {
+        if (Provider == DbProvider.Oracle)
+        {
+            // Formato Easy Connect para Oracle
+            return $"User Id={Usuario};Password={Password};Data Source={Server}/{BaseDeDatos}";
+        }
+        
+        // Formato estándar para SQL Server
+        return $"Server={Server};Database={BaseDeDatos};User Id={Usuario};Password={Password};TrustServerCertificate=True;";
+    }
 }
 
 public class ConexionIntegratedSecurity : Conexion
@@ -50,8 +59,15 @@ public class ConexionIntegratedSecurity : Conexion
 
     public ConexionIntegratedSecurity() => Tipo = TipoConexion.IntegratedSecurity;
 
-    public override string GetConnectionString() => 
-        $"Server={Server};Database={BaseDeDatos};Integrated Security=True;TrustServerCertificate=True;";
+    public override string GetConnectionString()
+    {
+        if (Provider == DbProvider.Oracle)
+        {
+            throw new NotSupportedException("Integrated Security (OS Authentication) no está implementada para Oracle en este momento.");
+        }
+        
+        return $"Server={Server};Database={BaseDeDatos};Integrated Security=True;TrustServerCertificate=True;";
+    }
 }
 
 public class ConexionConnectionString : Conexion
