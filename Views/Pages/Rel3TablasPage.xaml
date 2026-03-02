@@ -44,31 +44,37 @@
             
             <StackPanel Margin="0,0,12,0">
                 <TextBlock Text="Tabla 1" Opacity="0.7" FontSize="12" Margin="0,0,0,4"/>
-                <ui:AutoSuggestBox Width="180"
+                <ui:AutoSuggestBox x:Name="AutoSuggestBox1"
+                                   Width="180"
                                    PlaceholderText="Tabla 1"
                                    Text="{Binding Tabla1, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                    ItemsSource="{Binding SugerenciasTabla1}"
                                    TextChanged="AutoSuggestBox1_TextChanged"
+                                   Loaded="AutoSuggestBox_Loaded"
                                    QueryIcon="Find" />
             </StackPanel>
 
             <StackPanel Margin="0,0,12,0">
                 <TextBlock Text="Tabla 2" Opacity="0.7" FontSize="12" Margin="0,0,0,4"/>
-                <ui:AutoSuggestBox Width="180"
+                <ui:AutoSuggestBox x:Name="AutoSuggestBox2"
+                                   Width="180"
                                    PlaceholderText="Tabla 2"
                                    Text="{Binding Tabla2, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                    ItemsSource="{Binding SugerenciasTabla2}"
                                    TextChanged="AutoSuggestBox2_TextChanged"
+                                   Loaded="AutoSuggestBox_Loaded"
                                    QueryIcon="Find" />
             </StackPanel>
 
             <StackPanel Margin="0,0,12,0">
                 <TextBlock Text="Tabla 3" Opacity="0.7" FontSize="12" Margin="0,0,0,4"/>
-                <ui:AutoSuggestBox Width="180"
+                <ui:AutoSuggestBox x:Name="AutoSuggestBox3"
+                                   Width="180"
                                    PlaceholderText="Tabla 3"
                                    Text="{Binding Tabla3, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                    ItemsSource="{Binding SugerenciasTabla3}"
                                    TextChanged="AutoSuggestBox3_TextChanged"
+                                   Loaded="AutoSuggestBox_Loaded"
                                    QueryIcon="Find" />
             </StackPanel>
 

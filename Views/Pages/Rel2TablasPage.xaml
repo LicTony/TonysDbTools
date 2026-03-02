@@ -44,21 +44,25 @@
             
             <StackPanel Margin="0,0,12,0">
                 <TextBlock Text="Tabla 1" Opacity="0.7" FontSize="12" Margin="0,0,0,4"/>
-                <ui:AutoSuggestBox Width="220"
+                <ui:AutoSuggestBox x:Name="AutoSuggestBox1"
+                                   Width="220"
                                    PlaceholderText="Ej: Person.Person"
                                    Text="{Binding Tabla1, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                    ItemsSource="{Binding SugerenciasTabla1}"
                                    TextChanged="AutoSuggestBox1_TextChanged"
+                                   Loaded="AutoSuggestBox_Loaded"
                                    QueryIcon="Find" />
             </StackPanel>
 
             <StackPanel Margin="0,0,12,0">
                 <TextBlock Text="Tabla 2" Opacity="0.7" FontSize="12" Margin="0,0,0,4"/>
-                <ui:AutoSuggestBox Width="220"
+                <ui:AutoSuggestBox x:Name="AutoSuggestBox2"
+                                   Width="220"
                                    PlaceholderText="Ej: Sales.SalesOrderHeader"
                                    Text="{Binding Tabla2, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                    ItemsSource="{Binding SugerenciasTabla2}"
                                    TextChanged="AutoSuggestBox2_TextChanged"
+                                   Loaded="AutoSuggestBox_Loaded"
                                    QueryIcon="Find" />
             </StackPanel>
 
