@@ -1,9 +1,12 @@
+using Oracle.ManagedDataAccess.Client;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ConstrainedExecution;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
-using Oracle.ManagedDataAccess.Client;
 using TonysDbTools.Models;
 using TonysDbTools.Models.Join;
 
@@ -40,7 +43,7 @@ public class OracleMetadataProvider : IMetadataProvider
         try
         {
             var tables = new List<string>();
-            const string query = "SELECT OWNER, TABLE_NAME FROM ALL_TABLES WHERE OWNER = 'ELECCIONES_DBA_DESA' ORDER BY OWNER, TABLE_NAME";
+            const string query = "SELECT OWNER, TABLE_NAME FROM ALL_TABLES ORDER BY OWNER, TABLE_NAME";
             await using var connection = new OracleConnection(_connectionString);
             await connection.OpenAsync();
             await using var command = new OracleCommand(query, connection);
@@ -231,69 +234,101 @@ public class OracleMetadataProvider : IMetadataProvider
         return sb.ToString();
     }
 
-    public async Task<List<DbSearchResult>> SearchTextInTablesAsync(string textToFind, bool exactMatch, int topPerTable)
+    //public async Task<List<DbSearchResult>> SearchTextInTablesAsync(string textToFind, bool exactMatch, int topPerTable)
+    public async Task<List<DbSearchResult>> SearchTextInTablesAsync(
+        string textToFind, bool exactMatch, int topPerTable)
     {
-        var results = new List<DbSearchResult>();
+        int maxParallelism = 5;
 
+        var results = new ConcurrentBag<DbSearchResult>(); // Thread-safe
         string operatorSql = exactMatch ? "=" : "LIKE";
         string valueSql = exactMatch ? textToFind : $"%{textToFind}%";
 
-        string query = $@"
-            DECLARE
-              l_cursor SYS_REFCURSOR;
-              l_sql VARCHAR2(32767);
-            BEGIN
-              FOR r IN (
-                SELECT OWNER, TABLE_NAME, COLUMN_NAME 
-                FROM ALL_TAB_COLUMNS 
-                WHERE DATA_TYPE IN ('CHAR', 'VARCHAR2', 'NCHAR', 'NVARCHAR2', 'CLOB')
-                  AND OWNER NOT IN ('SYS', 'SYSTEM', 'OUTLN', 'APPQOSSYS', 'DBSNMP', 'CTXSYS', 'XDB', 'WMSYS')
-              ) LOOP
-                l_sql := 'SELECT ' || 
-                         '  ''Tabla: '' || :owner || ''.'' || :table AS Tabla, ' ||
-                         '  ''Columna: '' || :column AS Columna, ' ||
-                         '  CAST( ""' || r.COLUMN_NAME || '"" AS VARCHAR2(4000)) AS Valor ' ||
-                         'FROM ""' || r.OWNER || '"".""' || r.TABLE_NAME || '"" ' ||
-                         'WHERE ""' || r.COLUMN_NAME || '"" {operatorSql} :val ' ||
-                         'AND ROWNUM <= :top';
-                
-                -- Check if any records exist before returning a result set to keep it clean
-                -- But to avoid extra round-trips, we can just try to open and return.
-                -- However, returning thousands of empty cursors might be slow.
-                -- Let's check existence first.
-                
-                EXECUTE IMMEDIATE 'SELECT COUNT(*) FROM ""' || r.OWNER || '"".""' || r.TABLE_NAME || '"" WHERE ""' || r.COLUMN_NAME || '"" {operatorSql} :val AND ROWNUM = 1' 
-                INTO l_sql 
-                USING valueSql;
-                
-                IF TO_NUMBER(l_sql) > 0 THEN
-                  OPEN l_cursor FOR 'SELECT ' || 
-                                   '  ''Tabla: '' || :owner || ''.'' || :table AS Tabla, ' ||
-                                   '  ''Columna: '' || :column AS Columna, ' ||
-                                   '  CAST( ""' || r.COLUMN_NAME || '"" AS VARCHAR2(4000)) AS Valor ' ||
-                                   'FROM ""' || r.OWNER || '"".""' || r.TABLE_NAME || '"" ' ||
-                                   'WHERE ""' || r.COLUMN_NAME || '"" {operatorSql} :val ' ||
-                                   'AND ROWNUM <= :top'
-                  USING r.OWNER, r.TABLE_NAME, r.COLUMN_NAME, valueSql, topPerTable;
-                  
-                  DBMS_SQL.RETURN_RESULT(l_cursor);
-                END IF;
-              END LOOP;
-            END;";
+        // ── 1. Obtenemos todas las columnas de texto (conexión dedicada) ──────
+        const string colQuery = @"
+        SELECT OWNER, TABLE_NAME, COLUMN_NAME 
+        FROM ALL_TAB_COLUMNS 
+        WHERE DATA_TYPE IN ('CHAR','VARCHAR2','NCHAR','NVARCHAR2','CLOB')
+          AND OWNER NOT IN (
+              'SYS','SYSTEM','OUTLN','APPQOSSYS',
+              'DBSNMP','CTXSYS','XDB','WMSYS'
+          )
+        ORDER BY OWNER, TABLE_NAME, COLUMN_NAME";
 
-        await using var connection = new OracleConnection(_connectionString);
-        await connection.OpenAsync();
+        var columns = new List<(string Owner, string Table, string Column)>();
 
-        await using var command = new OracleCommand(query, connection);
-        //command.CommandTimeout = _commandTimeout;
-        // We use string interpolation for the operator but bind parameters for the value
-        command.Parameters.Add(":val", valueSql);
-        command.Parameters.Add(":top", topPerTable);
-        command.CommandTimeout = 300;
-
-        await using var reader = await command.ExecuteReaderAsync();
-        do
+        await using (var conn = new OracleConnection(_connectionString))
         {
+            await conn.OpenAsync();
+            await using var cmd = new OracleCommand(colQuery, conn);
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                columns.Add((
+                    reader.GetString(0),
+                    reader.GetString(1),
+                    reader.GetString(2)
+                ));
+            }
+        }
+
+        // ── 2. Procesamos en paralelo con límite de concurrencia ──────────────
+        // SemaphoreSlim actúa como un "portero": solo deja pasar N tareas a la vez
+        var semaphore = new SemaphoreSlim(maxParallelism);
+
+        var tasks = columns.Select(async col =>
+        {
+            await semaphore.WaitAsync(); // Esperá tu turno
+
+            try
+            {
+                await SearchColumnAsync(col.Owner, col.Table, col.Column,
+                                        operatorSql, valueSql, topPerTable,
+                                        results);
+            }
+            finally
+            {
+                semaphore.Release(); // Liberar lugar para la siguiente tarea
+            }
+        });
+
+        await Task.WhenAll(tasks);
+
+        // Ordenamos al final porque el orden de llegada es no determinístico
+        return results
+            .OrderBy(r => r.Tabla)
+            .ThenBy(r => r.Columna)
+            .ToList();
+    }
+
+    // ── Método auxiliar: busca en una sola columna ────────────────────────────
+    private async Task SearchColumnAsync(
+        string owner, string table, string column,
+        string operatorSql, string valueSql, int topPerTable,
+        ConcurrentBag<DbSearchResult> results)
+    {
+        string sql = $@"
+        SELECT 
+          '{owner}.{table}'                          AS Tabla,
+          '{column}'                                 AS Columna,
+          CAST(""{column}"" AS VARCHAR2(4000))       AS Valor
+        FROM ""{owner}"".""{table}""
+        WHERE ""{column}"" {operatorSql} :val
+        AND ROWNUM <= :top";
+
+        try
+        {
+            // Cada tarea paralela usa su PROPIA conexión
+            await using var conn = new OracleConnection(_connectionString);
+            await conn.OpenAsync();
+
+            await using var cmd = new OracleCommand(sql, conn);
+            cmd.CommandTimeout = 300;
+            cmd.Parameters.Add(":val", OracleDbType.Varchar2).Value = valueSql;
+            cmd.Parameters.Add(":top", OracleDbType.Int32).Value = topPerTable;
+
+            await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
                 results.Add(new DbSearchResult
@@ -303,10 +338,18 @@ public class OracleMetadataProvider : IMetadataProvider
                     Valor = reader["Valor"].ToString() ?? ""
                 });
             }
-        } while (await reader.NextResultAsync());
-
-        return results;
+        }
+        catch (OracleException ex) when (ex.Number == 942)
+        {
+            // ORA-00942: tabla/vista no existe, la ignoramos
+        }
+        catch (OracleException ex) when (ex.Number == 1031)
+        {
+            // ORA-01031: sin privilegios para leer esa tabla, la ignoramos
+        }
+        // Cualquier otro error lo dejamos burbujear hacia arriba
     }
+
 
     public async Task<List<DbSearchResult>> SearchNumberInTablesAsync(decimal valueToFind, int topPerTable)
     {
