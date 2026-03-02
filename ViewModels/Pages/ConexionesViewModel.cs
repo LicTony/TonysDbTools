@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Data.SqlClient;
 using TonysDbTools.Models;
 using TonysDbTools.Services;
 
@@ -31,6 +30,7 @@ public partial class ConexionesViewModel : ViewModelBase
     // Campos del formulario
     [ObservableProperty] private int _id;
     [ObservableProperty] private string _detalle = string.Empty;
+    [ObservableProperty] private DbProvider _providerSeleccionado = DbProvider.Mssql;
     [ObservableProperty] private TipoConexion _tipoSeleccionado = TipoConexion.UserPass;
     [ObservableProperty] private string _server = string.Empty;
     [ObservableProperty] private string _baseDeDatos = string.Empty;
@@ -42,6 +42,7 @@ public partial class ConexionesViewModel : ViewModelBase
     [ObservableProperty] private string _statusMessage = string.Empty;
 
     public Array TiposConexion => Enum.GetValues(typeof(TipoConexion));
+    public Array Providers => Enum.GetValues(typeof(DbProvider));
 
     public ConexionesViewModel()
     {
@@ -92,10 +93,9 @@ public partial class ConexionesViewModel : ViewModelBase
         try
         {
             var temp = CrearConexionDesdeCampos();
-            var connStr = temp.GetConnectionString();
-
-            using var conn = new SqlConnection(connStr);
-            await conn.OpenAsync();
+            var provider = MetadataProviderFactory.Create(temp);
+            await provider.TestConnectionAsync();
+            
             StatusMessage = "¡Conexión exitosa!";
         }
         catch (Exception ex)
@@ -106,13 +106,15 @@ public partial class ConexionesViewModel : ViewModelBase
 
     private Conexion CrearConexionDesdeCampos()
     {
-        return TipoSeleccionado switch
+        Conexion conexion = TipoSeleccionado switch
         {
             TipoConexion.UserPass => new ConexionUserPass { Server = Server, BaseDeDatos = BaseDeDatos, Usuario = Usuario, Password = Password },
             TipoConexion.IntegratedSecurity => new ConexionIntegratedSecurity { Server = Server, BaseDeDatos = BaseDeDatos },
             TipoConexion.ConnectionString => new ConexionConnectionString { ConnectionString = ConnectionString },
             _ => throw new ArgumentOutOfRangeException()
         };
+        conexion.Provider = ProviderSeleccionado;
+        return conexion;
     }
 
     [RelayCommand]
@@ -133,6 +135,7 @@ public partial class ConexionesViewModel : ViewModelBase
         Id = conexion.Id;
         Detalle = conexion.Detalle;
         TipoSeleccionado = conexion.Tipo;
+        ProviderSeleccionado = conexion.Provider;
 
         if (conexion is ConexionUserPass up)
         {
@@ -165,6 +168,7 @@ public partial class ConexionesViewModel : ViewModelBase
         Password = string.Empty;
         ConnectionString = string.Empty;
         TipoSeleccionado = TipoConexion.UserPass;
+        ProviderSeleccionado = DbProvider.Mssql;
         StatusMessage = string.Empty;
     }
 }

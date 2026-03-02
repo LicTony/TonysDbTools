@@ -9,7 +9,7 @@ namespace TonysDbTools.Services;
 
 public sealed class JoinFinderService : IJoinFinderService, IDisposable, IAsyncDisposable
 {
-    private readonly string _connectionString;
+    private readonly IMetadataProvider _metadataProvider;
 
     // Cache de todas las FK de la base de datos
     private List<ForeignKeyRelation>? _allRelations;
@@ -17,9 +17,9 @@ public sealed class JoinFinderService : IJoinFinderService, IDisposable, IAsyncD
     // Grafo de adyacencia: tabla -> lista de (tabla vecina, relación FK)
     private Dictionary<string, List<(string Neighbor, ForeignKeyRelation Relation)>>? _graph;
 
-    public JoinFinderService(string connectionString)
+    public JoinFinderService(IMetadataProvider metadataProvider)
     {
-        _connectionString = connectionString;
+        _metadataProvider = metadataProvider;
     }
 
     /// <summary>
@@ -32,70 +32,21 @@ public sealed class JoinFinderService : IJoinFinderService, IDisposable, IAsyncD
         _allRelations = [];
         _graph = new(StringComparer.OrdinalIgnoreCase);
 
-        const string query = """
-            SELECT 
-                fk.name                           AS ConstraintName,
-                sch1.name                         AS FromSchema,
-                tab1.name                         AS FromTable,
-                col1.name                         AS FromColumn,
-                sch2.name                         AS ToSchema,
-                tab2.name                         AS ToTable,
-                col2.name                         AS ToColumn
-            FROM sys.foreign_key_columns fkc
-            INNER JOIN sys.foreign_keys fk 
-                ON fkc.constraint_object_id = fk.object_id
-            INNER JOIN sys.tables tab1 
-                ON fkc.parent_object_id = tab1.object_id
-            INNER JOIN sys.schemas sch1 
-                ON tab1.schema_id = sch1.schema_id
-            INNER JOIN sys.columns col1 
-                ON fkc.parent_object_id = col1.object_id 
-                AND fkc.parent_column_id = col1.column_id
-            INNER JOIN sys.tables tab2 
-                ON fkc.referenced_object_id = tab2.object_id
-            INNER JOIN sys.schemas sch2 
-                ON tab2.schema_id = sch2.schema_id
-            INNER JOIN sys.columns col2 
-                ON fkc.referenced_object_id = col2.object_id 
-                AND fkc.referenced_column_id = col2.column_id
-            ORDER BY fk.name, fkc.constraint_column_id
-            """;
-
         try
         {
-            await using var connection = new SqlConnection(_connectionString);
-            await connection.OpenAsync();
-
             // 1. Cargar todas las tablas primero para asegurar que existan en el grafo
-            const string allTablesQuery = "SELECT s.name, t.name FROM sys.tables t INNER JOIN sys.schemas s ON t.schema_id = s.schema_id";
-            await using (var cmdTables = new SqlCommand(allTablesQuery, connection))
-            await using (var readerTables = await cmdTables.ExecuteReaderAsync())
+            var allTables = await _metadataProvider.GetAllTablesAsync();
+            foreach (var fullName in allTables)
             {
-                while (await readerTables.ReadAsync())
-                {
-                    var fullName = $"{readerTables.GetString(0)}.{readerTables.GetString(1)}";
-                    if (!_graph.ContainsKey(fullName))
-                        _graph[fullName] = [];
-                }
+                if (!_graph.ContainsKey(fullName))
+                    _graph[fullName] = [];
             }
 
             // 2. Cargar las relaciones FK
-            await using var command = new SqlCommand(query, connection);
-            await using var reader = await command.ExecuteReaderAsync();
+            var relations = await _metadataProvider.GetForeignKeyRelationsAsync();
 
-            while (await reader.ReadAsync())
+            foreach (var relation in relations)
             {
-                var relation = new ForeignKeyRelation
-                {
-                    ConstraintName = reader.GetString(0),
-                    FromSchema = reader.GetString(1),
-                    FromTable = reader.GetString(2),
-                    FromColumn = reader.GetString(3),
-                    ToSchema = reader.GetString(4),
-                    ToTable = reader.GetString(5),
-                    ToColumn = reader.GetString(6),
-                };
-
                 _allRelations.Add(relation);
 
                 // Grafo bidireccional: la FK va en ambas direcciones para JOIN
@@ -403,59 +354,7 @@ public sealed class JoinFinderService : IJoinFinderService, IDisposable, IAsyncD
     /// </summary>
     public async Task<List<ForeignKeyRelation>> FindImplicitJoinsAsync(string[] tableNames)
     {
-        var results = new List<ForeignKeyRelation>();
-
-        const string query = """
-            SELECT 
-                c1.TABLE_SCHEMA AS Schema1,
-                c1.TABLE_NAME   AS Table1,
-                c1.COLUMN_NAME  AS Column1,
-                c2.TABLE_SCHEMA AS Schema2,
-                c2.TABLE_NAME   AS Table2,
-                c2.COLUMN_NAME  AS Column2,
-                c1.DATA_TYPE    AS DataType
-            FROM INFORMATION_SCHEMA.COLUMNS c1
-            INNER JOIN INFORMATION_SCHEMA.COLUMNS c2
-                ON c1.COLUMN_NAME = c2.COLUMN_NAME
-                AND c1.DATA_TYPE = c2.DATA_TYPE
-                AND (c1.TABLE_SCHEMA + '.' + c1.TABLE_NAME) < (c2.TABLE_SCHEMA + '.' + c2.TABLE_NAME)
-            WHERE c1.TABLE_NAME IN ({0})
-              AND c2.TABLE_NAME IN ({0})
-            ORDER BY c1.COLUMN_NAME
-            """;
-
-        var parameters = tableNames
-            .Select((name, i) => name.Contains('.') ? name.Split('.')[1] : name)
-            .ToArray();
-
-        var placeholders = string.Join(",", parameters.Select((_, i) => $"@t{i}"));
-        var finalQuery = string.Format(query, placeholders);
-
-        await using var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync();
-
-        await using var command = new SqlCommand(finalQuery, connection);
-        for (int i = 0; i < parameters.Length; i++)
-        {
-            command.Parameters.AddWithValue($"@t{i}", parameters[i]);
-        }
-
-        await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
-        {
-            results.Add(new ForeignKeyRelation
-            {
-                ConstraintName = $"[IMPLICIT: same column name '{reader.GetString(2)}' ({reader.GetString(6)})]",
-                FromSchema = reader.GetString(0),
-                FromTable = reader.GetString(1),
-                FromColumn = reader.GetString(2),
-                ToSchema = reader.GetString(3),
-                ToTable = reader.GetString(4),
-                ToColumn = reader.GetString(5),
-            });
-        }
-
-        return results;
+        return await _metadataProvider.FindImplicitJoinsAsync(tableNames);
     }
 
 

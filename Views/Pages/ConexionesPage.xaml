@@ -44,6 +44,13 @@
                         <TextBox Text="{Binding Detalle, UpdateSourceTrigger=PropertyChanged}" />
                     </StackPanel>
 
+                    <StackPanel Width="150" Margin="0,0,12,0">
+                        <TextBlock Margin="0,0,0,4" Text="Proveedor" />
+                        <ComboBox HorizontalAlignment="Stretch"
+                                  ItemsSource="{Binding Providers}"
+                                  SelectedItem="{Binding ProviderSeleccionado}" />
+                    </StackPanel>
+
                     <StackPanel Width="180" Margin="0,0,12,0">
                         <TextBlock Margin="0,0,0,4" Text="Tipo" />
                         <ComboBox HorizontalAlignment="Stretch"
@@ -164,6 +171,9 @@
                     <DataGridTextColumn Width="*"
                                         Binding="{Binding Detalle}"
                                         Header="Detalle" />
+                    <DataGridTextColumn Width="100"
+                                        Binding="{Binding Provider}"
+                                        Header="Proveedor" />
                     <DataGridTextColumn Width="150"
                                         Binding="{Binding Tipo}"
                                         Header="Tipo" />

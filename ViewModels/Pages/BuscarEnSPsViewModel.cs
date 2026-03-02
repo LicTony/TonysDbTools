@@ -1,13 +1,11 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Data.SqlClient;
 using TonysDbTools.Models;
 using TonysDbTools.Services;
 using TonysDbTools.Views;
@@ -64,38 +62,12 @@ public partial class BuscarEnSPsViewModel : ViewModelBase
 
         try
         {
-            var connStr = ConexionSeleccionada.GetConnectionString();
-            using var conn = new SqlConnection(connStr);
-            await conn.OpenAsync();
+            var provider = MetadataProviderFactory.Create(ConexionSeleccionada);
+            var results = await provider.SearchInSpsAsync(FiltroSp, TextoBuscar);
 
-            string query = @"
-                declare @part_name_sp varchar(50) = @param_sp
-                declare @part_name_find varchar(50) = @param_find
-
-                select  'sp_helptext ' + '''' + s.name + '.' + o.name + '''' as Store,
-                        COUNT(*) as CantOcurrencias
-                from        sysobjects o
-                inner join  syscomments c on o.id = c.id
-                inner join  sys.schemas s on s.schema_id = o.uid
-                where
-                    o.name like '%' + ltrim(rtrim(@part_name_sp)) + '%'
-                    and (type = 'p' or type = 'v')
-                    and text like '%' + ltrim(rtrim(@part_name_find)) + '%'
-                group by o.name, s.name
-                order by 2 desc";
-
-            using var cmd = new SqlCommand(query, conn);
-            cmd.Parameters.AddWithValue("@param_sp", FiltroSp ?? "");
-            cmd.Parameters.AddWithValue("@param_find", TextoBuscar);
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            foreach (var res in results)
             {
-                Resultados.Add(new SpSearchResult
-                {
-                    Store = reader["Store"].ToString() ?? "",
-                    CantOcurrencias = Convert.ToInt32(reader["CantOcurrencias"])
-                });
+                Resultados.Add(res);
             }
 
             if (Resultados.Count == 0)
@@ -139,7 +111,8 @@ public partial class BuscarEnSPsViewModel : ViewModelBase
         // El formato es: sp_helptext 'schema.name'
         string spName = item.Store.Replace("sp_helptext '", "").Replace("'", "");
 
-        var viewModel = new DetalleSpViewModel(spName, item.Store, ConexionSeleccionada.GetConnectionString(), TextoBuscar);
+        var provider = MetadataProviderFactory.Create(ConexionSeleccionada);
+        var viewModel = new DetalleSpViewModel(spName, provider, TextoBuscar);
         var view = new DetalleSpView(viewModel);
         
         // Intentar poner la ventana principal como dueña

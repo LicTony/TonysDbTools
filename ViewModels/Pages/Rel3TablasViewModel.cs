@@ -75,7 +75,8 @@ public partial class Rel3TablasViewModel : ViewModelBase
 
         if (value != null)
         {
-            _joinFinderService = new JoinFinderService(value.GetConnectionString());
+            var provider = MetadataProviderFactory.Create(value);
+            _joinFinderService = new JoinFinderService(provider);
             _ = CargarTablasAsync();
         }
         

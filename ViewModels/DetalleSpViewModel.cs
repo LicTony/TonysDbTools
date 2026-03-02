@@ -3,8 +3,8 @@ using System.Text;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Data.SqlClient;
 using TonysDbTools.Models;
+using TonysDbTools.Services;
 
 namespace TonysDbTools.ViewModels;
 
@@ -21,15 +21,13 @@ public partial class DetalleSpViewModel : ViewModelBase
     [ObservableProperty] private bool _isSearchOpen;
     [ObservableProperty] private string _searchStatus = string.Empty;
 
-    private readonly string _connectionString;
-    private readonly string _commandText;
+    private readonly IMetadataProvider _metadataProvider;
     private int _lastSearchIndex = -1;
 
-    public DetalleSpViewModel(string spName, string commandText, string connectionString, string initialSearchText)
+    public DetalleSpViewModel(string spName, IMetadataProvider metadataProvider, string initialSearchText)
     {
         SpName = spName;
-        _commandText = commandText;
-        _connectionString = connectionString;
+        _metadataProvider = metadataProvider;
         TextoBusquedaLocal = initialSearchText;
         Titulo = $"Código: {spName}";
         
@@ -41,22 +39,10 @@ public partial class DetalleSpViewModel : ViewModelBase
     {
         IsLoading = true;
         StatusMessage = "Cargando código...";
-        var sb = new StringBuilder();
 
         try
         {
-            using var conn = new SqlConnection(_connectionString);
-            await conn.OpenAsync();
-
-            using var cmd = new SqlCommand(_commandText, conn);
-            using var reader = await cmd.ExecuteReaderAsync();
-
-            while (await reader.ReadAsync())
-            {
-                sb.Append(reader[0].ToString());
-            }
-
-            ContenidoSql = sb.ToString();
+            ContenidoSql = await _metadataProvider.GetSpCodeAsync(SpName);
             StatusMessage = "Código cargado correctamente.";
         }
         catch (Exception ex)

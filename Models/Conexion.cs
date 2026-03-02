@@ -10,6 +10,12 @@ public enum TipoConexion
     ConnectionString
 }
 
+public enum DbProvider
+{
+    Mssql,
+    Oracle
+}
+
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
 [JsonDerivedType(typeof(ConexionUserPass), typeDiscriminator: "UserPass")]
 [JsonDerivedType(typeof(ConexionIntegratedSecurity), typeDiscriminator: "IntegratedSecurity")]
@@ -18,6 +24,7 @@ public abstract class Conexion
 {
     public int Id { get; set; }
     public TipoConexion Tipo { get; set; }
+    public DbProvider Provider { get; set; } = DbProvider.Mssql;
     public string Detalle { get; set; } = string.Empty;
 
     public abstract string GetConnectionString();
